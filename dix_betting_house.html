@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>🎰 Dix Betting House</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(ellipse at center, #1c1c1c 0%, #0e0e0e 100%);
+      color: #ffd700;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    h1 {
+      font-size: 32px;
+      color: #ffd700;
+      text-shadow: 0 0 10px #ffdd00;
+    }
+    .box {
+      background: linear-gradient(145deg, #2c2c2c, #1a1a1a);
+      border: 2px solid #ffd70088;
+      border-radius: 12px;
+      box-shadow: 0 0 12px #000000aa;
+      padding: 20px;
+      margin-top: 20px;
+      width: 100%;
+      max-width: 500px;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 8px 0;
+      width: 100%;
+      border-radius: 6px;
+      border: none;
+      box-sizing: border-box;
+    }
+    input {
+      background-color: #2d2d2d;
+      color: #fff;
+    }
+    button {
+      background: linear-gradient(145deg, #ffce00, #d4a300);
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    button:hover {
+      background: linear-gradient(145deg, #ffe954, #c79800);
+      transform: scale(1.02);
+    }
+    .resultado, ul {
+      margin-top: 15px;
+    }
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    .hidden {
+      display: none;
+    }
+    .adm-discreto {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 6px;
+      transition: color 0.3s, background 0.3s;
+    }
+    .adm-discreto:hover {
+      color: #ffd700;
+      background: rgba(255, 215, 0, 0.1);
+      border-radius: 4px;
+    }
+    .info-user {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #ccc;
+    }
+    hr {
+      border: 1px dashed #ffd70044;
+      margin: 15px 0;
+    }
+    strong {
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <button id="botaoAdm" class="adm-discreto" onclick="abrirPainelLogin()">🔐 Login ADM</button>
+  <h1>🎰 Dix Betting House</h1>
+
+  <div class="box" id="painelUsuario">
+    <h3>Login do Jogador</h3>
+    <input type="text" id="usuarioNome" placeholder="Seu Nome">
+    <input type="text" id="usuarioID" placeholder="ID do Jogador">
+    <input type="text" id="usuarioTelefone" placeholder="Telefone para Contato">
+    <button onclick="loginUsuario()">Entrar no Cassino</button>
+    <div id="erroUsuario" style="color: red;"></div>
+  </div>
+
+  <div class="box hidden" id="painelLogin">
+    <h3>Login do Administrador</h3>
+    <input type="text" id="loginUsuario" placeholder="Usuário">
+    <input type="password" id="loginSenha" placeholder="Senha">
+    <button onclick="fazerLogin()">Entrar</button>
+    <div id="erroLogin" style="color: red;"></div>
+  </div>
+
+  <div class="box hidden" id="painelADM">
+    <h3>🎲 Painel do ADM</h3>
+    <input type="text" id="novoCupom" placeholder="Novo Cupom (conhecido)">
+    <button onclick="adicionarCupom()">Cadastrar Cupom</button>
+    <ul id="listaCupons"></ul>
+    <hr>
+    <h4>📩 Solicitações Recebidas:</h4>
+    <button onclick="exportarCSV()">⬇ Exportar CSV</button>
+    <ul id="listaSolicitacoes"></ul>
+  </div>
+
+  <div class="box hidden" id="painelDeposito">
+    <div class="info-user" id="infoUsuario"></div>
+    <h3>Depositar & Validar Cupom</h3>
+    <input type="text" id="campoCupom" placeholder="Digite seu Cupom (se tiver)">
+    <input type="number" id="campoDeposito" placeholder="Quantas balas quer depositar?">
+    <button onclick="calcularRecebimento()">Calcular quanto recebo</button>
+    <div class="resultado" id="resultadoPublico"></div>
+  </div>
+
+  <script>
+    const cuponsValidos = [];
+    const solicitacoesRecebidas = [];
+    const adminUser = "admin";
+    const adminPass = "1234";
+    let usuarioLogado = null;
+
+    function abrirPainelLogin() {
+      const painelLogin = document.getElementById('painelLogin');
+      const painelUsuario = document.getElementById('painelUsuario');
+      if (painelLogin && painelUsuario) {
+        painelLogin.classList.remove('hidden');
+        painelUsuario.classList.add('hidden');
+      }
+    }
+
+    function fazerLogin() {
+      const usuario = document.getElementById('loginUsuario').value.trim();
+      const senha = document.getElementById('loginSenha').value.trim();
+      const erro = document.getElementById('erroLogin');
+
+      if (usuario === adminUser && senha === adminPass) {
+        document.getElementById('painelLogin').classList.add('hidden');
+        document.getElementById('painelADM').classList.remove('hidden');
+        document.getElementById('painelDeposito').classList.add('hidden');
+        atualizarListaCupons();
+        atualizarListaSolicitacoes();
+      } else {
+        erro.textContent = "Usuário ou senha incorretos.";
+      }
+    }
+
+    function loginUsuario() {
+      const nome = document.getElementById('usuarioNome').value.trim();
+      const id = document.getElementById('usuarioID').value.trim();
+      const telefone = document.getElementById('usuarioTelefone').value.trim();
+      const erro = document.getElementById('erroUsuario');
+
+      if (nome && id && telefone) {
+        usuarioLogado = { nome, id, telefone };
+        document.getElementById('painelUsuario').classList.add('hidden');
+        document.getElementById('painelDeposito').classList.remove('hidden');
+        document.getElementById('infoUsuario').innerHTML =
+          `🎫 Jogador: <strong>${nome}</strong> | ID: <strong>${id}</strong> | Tel: <strong>${telefone}</strong>`;
+      } else {
+        erro.textContent = "Preencha todos os campos para continuar.";
+      }
+    }
+
+    function adicionarCupom() {
+      carregarCupons();
+      const cupom = document.getElementById('novoCupom').value.trim().toLowerCase();
+      if (cupom && !cuponsValidos.includes(cupom)) {
+        cuponsValidos.push(cupom);
+        salvarCupons();
+        atualizarListaCupons();
+        document.getElementById('novoCupom').value = '';
+      }
+    }
+
+    function atualizarListaCupons() {
+      const ul = document.getElementById('listaCupons');
+      ul.innerHTML = '';
+      cuponsValidos.forEach((cupom, i) => {
+        const li = document.createElement('li');
+        li.textContent = `${i + 1}. ${cupom}`;
+        ul.appendChild(li);
+      });
+    }
+
+    function calcularRecebimento() {
+      const cupomDigitado = document.getElementById('campoCupom').value.trim().toLowerCase();
+      const deposito = parseFloat(document.getElementById('campoDeposito').value);
+      const resultadoDiv = document.getElementById('resultadoPublico');
+
+      if (!usuarioLogado) {
+        resultadoDiv.innerHTML = "Você precisa estar logado.";
+        return;
+      }
+
+      if (isNaN(deposito) || deposito <= 0) {
+        resultadoDiv.innerHTML = "Digite um valor de depósito válido.";
+        return;
+      }
+
+      const isConhecido = cuponsValidos.includes(cupomDigitado);
+      const porcentagem = isConhecido ? 0.75 : 0.70;
+      const valorFinal = Math.floor(deposito * porcentagem);
+
+      const solicitacao = {
+        ...usuarioLogado,
+        cupom: cupomDigitado || "Nenhum",
+        status: isConhecido ? "Conhecido (75%)" : "Desconhecido (70%)",
+        deposito: deposito,
+        valorFinal: valorFinal,
+        pago: false
+      };
+
+      salvarSolicitacaoLocal(solicitacao);
+      atualizarListaSolicitacoes();
+
+      resultadoDiv.innerHTML = `
+        ✅ <strong>Recebemos sua solicitação!</strong><br>
+        Em breve entraremos em contato pelo telefone informado.<br><br>
+        Cupom: <strong>${solicitacao.cupom}</strong><br>
+        Status: ${solicitacao.status}<br>
+        Você irá receber: <strong>${valorFinal} balas</strong>
+      `;
+    }
+
+    function atualizarListaSolicitacoes() {
+      salvarSolicitacoes();
+      const ul = document.getElementById('listaSolicitacoes');
+      if (!ul) return;
+      ul.innerHTML = '';
+      solicitacoesRecebidas.forEach((s, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <strong>${i + 1}</strong> - ${s.nome} (ID: ${s.id}, Tel: ${s.telefone})<br>
+          Cupom: <strong>${s.cupom}</strong> | Status: ${s.status}<br>
+          Depósito: ${s.deposito} → Vai receber: <strong>${s.valorFinal} balas</strong><br>
+          <span>Status de pagamento: <strong style="color: ${s.pago ? '#00ff00' : '#ff4444'}">${s.pago ? 'Pago' : 'Não pago'}</strong></span><br>
+          ${!s.pago ? `<button onclick="marcarComoPago(${i})">✔ Marcar como pago</button>` : ''}
+          <hr>
+        `;
+        ul.appendChild(li);
+      });
+    }
+
+    function marcarComoPago(index) {
+      solicitacoesRecebidas[index].pago = true;
+      atualizarListaSolicitacoes();
+    }
+
+    function exportarCSV() {
+      if (solicitacoesRecebidas.length === 0) {
+        alert("Nenhuma solicitação para exportar.");
+        return;
+      }
+      const headers = ["Nome", "ID", "Telefone", "Cupom", "Status", "Depósito", "Receber", "Pagamento"];
+      const linhas = solicitacoesRecebidas.map(s => [
+        s.nome, s.id, s.telefone, s.cupom, s.status,
+        s.deposito, s.valorFinal, s.pago ? "Pago" : "Não pago"
+      ]);
+      const conteudo = [headers, ...linhas]
+        .map(linha => linha.map(v => `"${v}"`).join(","))
+        .join("\n");
+      const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "solicitacoes_dix_betting_house.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // Persistência local
+    function salvarSolicitacoes() {
+      localStorage.setItem('solicitacoes', JSON.stringify(solicitacoesRecebidas));
+    }
+
+    function salvarSolicitacaoLocal(solicitacao) {
+      solicitacoesRecebidas.push(solicitacao);
+      salvarSolicitacoes();
+    }
+
+    function carregarSolicitacoes() {
+      const data = localStorage.getItem('solicitacoes');
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          parsed.forEach(s => solicitacoesRecebidas.push(s));
+        } catch (e) { console.error('Erro ao carregar solicitações:', e); }
+      }
+    }
+
+    function salvarCupons() {
+      localStorage.setItem('cupons', JSON.stringify(cuponsValidos));
+    }
+
+    function carregarCupons() {
+      const data = localStorage.getItem('cupons');
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          cuponsValidos.length = 0;
+          parsed.forEach(c => cuponsValidos.push(c));
+        } catch (e) { console.error('Erro ao carregar cupons:', e); }
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      carregarCupons();
+      carregarSolicitacoes();
+    });
+  </script>
+<div class="box" style="margin-top: 40px;">
+  <h2 style="text-align: center; color: #fff;">🎮 Jogos Disponíveis</h2>
+  <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding-top: 10px;">
+
+    <div style="text-align: center;">
+      <img src="ChatGPT Image 28 de jun. de 2025, 15_40_14.png" alt="🃏 Blackjack" style="width:100px; height:100px; border-radius: 8px;">
+      <div style="margin-top: 6px;">🃏 Blackjack</div>
+    </div>
+    
+    <div style="text-align: center;">
+      <img src="ChatGPT Image 28 de jun. de 2025, 15_40_16.png" alt="🎲 Dados" style="width:100px; height:100px; border-radius: 8px;">
+      <div style="margin-top: 6px;">🎲 Dados</div>
+    </div>
+    
+    <div style="text-align: center;">
+      <img src="ChatGPT Image 28 de jun. de 2025, 15_40_18.png" alt="🎡 Roleta" style="width:100px; height:100px; border-radius: 8px;">
+      <div style="margin-top: 6px;">🎡 Roleta</div>
+    </div>
+    
+    <div style="text-align: center;">
+      <img src="ChatGPT Image 28 de jun. de 2025, 15_40_20.png" alt="🎰 Caça-níquel" style="width:100px; height:100px; border-radius: 8px;">
+      <div style="margin-top: 6px;">🎰 Caça-níquel</div>
+    </div>
+    
+    <div style="text-align: center;">
+      <img src="ChatGPT Image 28 de jun. de 2025, 15_40_11.png" alt="💎 Mega Jackpot" style="width:100px; height:100px; border-radius: 8px;">
+      <div style="margin-top: 6px;">💎 Mega Jackpot</div>
+    </div>
+    </div></div>
+</body>
+</html>
